@@ -2,7 +2,7 @@
 
 A lightweight SillyTavern reference-manual drawer for Markdown and other text-based files.
 
-## v0.2.0
+## v0.2.1
 
 - Persistent manual library using SillyTavern's browser-side localforage storage.
 - `.md` / `.markdown`, `.txt`, `.html`, `.json`, `.yaml` / `.yml`, and `.csv` imports.
@@ -48,5 +48,12 @@ No proprietary document format is required.
 v0.1 intentionally does not modify World Info, inject manuals into prompts, or depend on ST Lore Organizer. It is a human-facing reference tool. A later bridge can add “Open Lore Entry” actions.
 
 
-### v0.2.0 startup fix
+### v0.2.1 startup fix
 The floating launcher is created before persistent storage is loaded, activation-hook support is restored, and storage failures no longer prevent the UI from appearing.
+
+
+## v0.2.1
+- Mobile viewer is now a fully opaque full-screen surface.
+- Added collapsible Contents & Keywords drawer on phones.
+- Reader/search/header use isolated scrolling and mobile-safe layout.
+- Desktop keeps the side-index layout.

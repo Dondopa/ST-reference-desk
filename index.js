@@ -123,17 +123,19 @@ function settingsPanel(){
 
 function updateSettingsStatus(){
   const el=document.getElementById('rd-settings-status');
-  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.0`;
+  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.1`;
 }
 
 function shell(){
-  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.0</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><aside><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
+  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.1</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
   $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
+  $('#rd-nav-toggle').on('click',()=>$('#rd-sidebar').addClass('open'));
+  $('#rd-nav-close').on('click',()=>$('#rd-sidebar').removeClass('open'));
   $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')$('#rd-overlay').removeClass('open');});
   $('#rd-add,#rd-empty-open').on('click',()=>$('#rd-file').trigger('click'));
   $('#rd-file').on('change',async e=>{await importFiles([...e.target.files]);e.target.value='';});
   $('#rd-tabs').on('click',async e=>{const rem=e.target.dataset.remove;if(rem){e.stopPropagation();docs=docs.filter(d=>d.id!==rem);if(activeId===rem)activeId=docs[0]?.id||null;await saveDocs();render();return;}const b=e.target.closest('[data-id]');if(b){activeId=b.dataset.id;searchTerm='';$('#rd-search').val('');render();}});
-  $('#rd-toc').on('click',e=>{const b=e.target.closest('[data-jump]');document.getElementById(b?.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'});});
+  $('#rd-toc').on('click',e=>{const b=e.target.closest('[data-jump]');document.getElementById(b?.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'}); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
   $('#rd-keywords').on('click',async e=>{const ins=e.target.dataset.insert;if(ins){e.stopPropagation();insertIntoChat(ins);return;}const b=e.target.closest('[data-key]');if(b){await navigator.clipboard.writeText(b.dataset.key);toast(`Copied: ${b.dataset.key}`,'success');}});
   let timer; $('#rd-search').on('input',e=>{clearTimeout(timer);timer=setTimeout(()=>{searchTerm=e.target.value.trim();render();},120);});
   $('#rd-clear').on('click',()=>{searchTerm='';$('#rd-search').val('');render();});
@@ -143,7 +145,7 @@ function shell(){
 export async function init(){
   if(initialized) return;
   initialized=true;
-  console.log('[ST Reference Desk] init v0.2.0');
+  console.log('[ST Reference Desk] init v0.2.1');
 
   try {
     if (!document.getElementById('rd-overlay')) shell();
@@ -158,7 +160,7 @@ export async function init(){
   try {
     await loadDocs();
     render();
-    console.log('[ST Reference Desk] ready v0.2.0');
+    console.log('[ST Reference Desk] ready v0.2.1');
   } catch (error) {
     console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
     docs=[];
