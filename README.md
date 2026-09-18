@@ -2,7 +2,7 @@
 
 A lightweight SillyTavern reference-manual drawer for Markdown and other text-based files.
 
-## v0.1.0
+## v0.1.1
 
 - Persistent manual library using SillyTavern's browser-side localforage storage.
 - `.md` / `.markdown`, `.txt`, `.html`, `.json`, `.yaml` / `.yml`, and `.csv` imports.

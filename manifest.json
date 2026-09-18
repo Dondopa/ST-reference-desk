@@ -6,7 +6,6 @@
   "js": "index.js",
   "css": "style.css",
   "author": "Dondopa + OpenAI",
-  "version": "0.1.0",
-  "homePage": "",
-  "hooks": { "activate": "init" }
+  "version": "0.1.1",
+  "homePage": ""
 }
