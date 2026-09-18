@@ -93,7 +93,7 @@ async function importFiles(files){
   await saveDocs(); render();
 }
 function shell(){
-  $('body').append(`<button id="rd-fab" title="Reference Desk">📖</button><div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.1.1</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><aside><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
+  $('body').append(`<button id="rd-fab" title="Reference Desk">📖</button><div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.1.2</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><aside><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
   $('#rd-fab').on('click',()=>$('#rd-overlay').addClass('open'));
   $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
   $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')$('#rd-overlay').removeClass('open');});
@@ -110,22 +110,36 @@ function shell(){
 export async function init(){
   if(initialized) return;
   initialized=true;
+  console.log('[ST Reference Desk] init v0.1.2');
+
+  // The launcher must exist even if persistence fails. This makes startup
+  // failures visible instead of silently removing the entire extension UI.
   try {
-    await loadDocs();
-    shell();
-    render();
-    console.log('[ST Reference Desk] ready v0.1.1');
+    if (!document.getElementById('rd-fab')) shell();
   } catch (error) {
     initialized=false;
-    console.error('[ST Reference Desk] failed to initialize', error);
-    window.toastr?.error?.('Reference Desk failed to initialize. Check browser console.');
+    console.error('[ST Reference Desk] could not create UI', error);
+    window.toastr?.error?.('Reference Desk could not create its UI. Check browser console.');
+    return;
+  }
+
+  try {
+    await loadDocs();
+    render();
+    console.log('[ST Reference Desk] ready v0.1.2');
+  } catch (error) {
+    console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
+    docs=[];
+    activeId=null;
+    render();
+    window.toastr?.warning?.('Reference Desk opened, but saved manuals could not be restored.');
   }
 }
 
-// SillyTavern loads the extension module, but exported functions are not
-// automatically invoked. Start Reference Desk explicitly when the DOM is ready.
+// Fallback self-start for third-party installs. The manifest also exposes
+// init through SillyTavern's activate hook; the initialized guard makes both safe.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => init(), { once: true });
 } else {
-  init();
+  queueMicrotask(() => init());
 }

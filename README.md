@@ -46,3 +46,7 @@ No proprietary document format is required.
 ## Notes
 
 v0.1 intentionally does not modify World Info, inject manuals into prompts, or depend on ST Lore Organizer. It is a human-facing reference tool. A later bridge can add “Open Lore Entry” actions.
+
+
+### v0.1.2 startup fix
+The floating launcher is created before persistent storage is loaded, activation-hook support is restored, and storage failures no longer prevent the UI from appearing.
