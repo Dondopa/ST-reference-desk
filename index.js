@@ -76,6 +76,7 @@ function highlight(root, term){ if(!term)return; const walk=document.createTreeW
 function active(){return docs.find(d=>d.id===activeId);}
 
 function render(){
+  updateSettingsStatus();
   const d=active();
   $('#rd-tabs').html(docs.map(x=>`<button class="rd-tab ${x.id===activeId?'active':''}" data-id="${x.id}">${esc(x.name.replace(/\.[^.]+$/,''))}<span data-remove="${x.id}">×</span></button>`).join(''));
   $('#rd-empty').toggle(!d); $('#rd-workspace').toggle(!!d); if(!d)return;
@@ -92,9 +93,41 @@ async function importFiles(files){
   for(const f of files){ const ext=f.name.split('.').pop().toLowerCase(); if(!['md','markdown','txt','html','htm','json','yaml','yml','csv'].includes(ext)){toast(`Skipped unsupported file: ${f.name}`,'warning');continue;} const content=await f.text(); const old=docs.find(x=>x.name===f.name); if(old){old.content=content;old.updated=Date.now();activeId=old.id;}else{const d={id:crypto.randomUUID(),name:f.name,content,updated:Date.now()};docs.push(d);activeId=d.id;} }
   await saveDocs(); render();
 }
+function settingsPanel(){
+  if (document.getElementById('rd-settings')) return;
+  const target = document.querySelector('#extensions_settings2') || document.querySelector('#extensions_settings');
+  if (!target) {
+    console.warn('[ST Reference Desk] Extensions settings container not found yet.');
+    return;
+  }
+  target.insertAdjacentHTML('beforeend', `
+    <div id="rd-settings" class="rd-settings-block">
+      <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+          <b>📖 Reference Desk</b>
+          <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+          <p>Rendered manuals and lore references for SillyTavern.</p>
+          <div class="rd-settings-actions">
+            <button id="rd-settings-open" class="menu_button">📖 Open Reference Desk</button>
+            <button id="rd-settings-import" class="menu_button">＋ Import Manual</button>
+          </div>
+          <small id="rd-settings-status">Ready</small>
+        </div>
+      </div>
+    </div>`);
+  $('#rd-settings-open').off('click.rd').on('click.rd',()=>$('#rd-overlay').addClass('open'));
+  $('#rd-settings-import').off('click.rd').on('click.rd',()=>$('#rd-file').trigger('click'));
+}
+
+function updateSettingsStatus(){
+  const el=document.getElementById('rd-settings-status');
+  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.0`;
+}
+
 function shell(){
-  $('body').append(`<button id="rd-fab" title="Reference Desk">📖</button><div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.1.2</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><aside><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
-  $('#rd-fab').on('click',()=>$('#rd-overlay').addClass('open'));
+  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.0</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><aside><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
   $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
   $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')$('#rd-overlay').removeClass('open');});
   $('#rd-add,#rd-empty-open').on('click',()=>$('#rd-file').trigger('click'));
@@ -110,12 +143,11 @@ function shell(){
 export async function init(){
   if(initialized) return;
   initialized=true;
-  console.log('[ST Reference Desk] init v0.1.2');
+  console.log('[ST Reference Desk] init v0.2.0');
 
-  // The launcher must exist even if persistence fails. This makes startup
-  // failures visible instead of silently removing the entire extension UI.
   try {
-    if (!document.getElementById('rd-fab')) shell();
+    if (!document.getElementById('rd-overlay')) shell();
+    settingsPanel();
   } catch (error) {
     initialized=false;
     console.error('[ST Reference Desk] could not create UI', error);
@@ -126,18 +158,21 @@ export async function init(){
   try {
     await loadDocs();
     render();
-    console.log('[ST Reference Desk] ready v0.1.2');
+    console.log('[ST Reference Desk] ready v0.2.0');
   } catch (error) {
     console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
     docs=[];
     activeId=null;
     render();
-    window.toastr?.warning?.('Reference Desk opened, but saved manuals could not be restored.');
+    window.toastr?.warning?.('Reference Desk loaded, but saved manuals could not be restored.');
   }
 }
 
-// Fallback self-start for third-party installs. The manifest also exposes
-// init through SillyTavern's activate hook; the initialized guard makes both safe.
+export async function onActivate(){
+  await init();
+}
+
+// Fallback for clients that load the module without invoking the manifest hook.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => init(), { once: true });
 } else {
