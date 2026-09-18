@@ -17,40 +17,28 @@ async function storage() {
 async function loadDocs(){ try { docs = (await (await storage()).getItem(DB_KEY)) || []; } catch(e){ console.error(e); docs=[]; } activeId ||= docs[0]?.id || null; }
 async function saveDocs(){ await (await storage()).setItem(DB_KEY, docs); }
 
-function inline(md) {
-  let x = esc(md);
-  x = x.replace(/`([^`]+)`/g, '<code class="rd-code">$1</code>');
-  x = x.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  x = x.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-  x = x.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
-  x = x.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-  x = x.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  return x;
-}
-function table(lines, start){
-  const rows=[]; let i=start;
-  while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { rows.push(lines[i].trim().slice(1,-1).split('|').map(x=>x.trim())); i++; }
-  if(rows.length<2 || !rows[1].every(c=>/^:?-{3,}:?$/.test(c))) return null;
-  const head=rows[0], body=rows.slice(2);
-  return { next:i, html:`<div class="rd-table-wrap"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${head.map((_,j)=>`<td>${inline(r[j]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` };
-}
 function markdown(md){
-  const lines=String(md).replace(/\r/g,'').split('\n'); let out='', para=[], list=null, fence=false, code=[];
-  const flush=()=>{ if(para.length){ out+=`<p>${inline(para.join(' '))}</p>`; para=[]; } if(list){ out+=`</${list}>`; list=null; } };
-  for(let i=0;i<lines.length;i++){
-    const l=lines[i];
-    if(/^```/.test(l)){ flush(); if(!fence){fence=true;code=[];} else {out+=`<pre><code>${esc(code.join('\n'))}</code></pre>`;fence=false;} continue; }
-    if(fence){code.push(l);continue;}
-    const t=table(lines,i); if(t){flush();out+=t.html;i=t.next-1;continue;}
-    const h=l.match(/^(#{1,6})\s+(.+)$/); if(h){flush(); const n=h[1].length, text=h[2]; out+=`<h${n} id="${idFor(text)}">${inline(text)}</h${n}>`;continue;}
-    if(/^\s*---+\s*$/.test(l)){flush();out+='<hr>';continue;}
-    const ul=l.match(/^\s*[-*+]\s+(.+)$/), ol=l.match(/^\s*\d+[.)]\s+(.+)$/);
-    if(ul||ol){ const want=ul?'ul':'ol'; if(list!==want){flush();list=want;out+=`<${want}>`;} out+=`<li>${inline((ul||ol)[1])}</li>`;continue; }
-    if(/^>\s?/.test(l)){flush();out+=`<blockquote>${inline(l.replace(/^>\s?/,''))}</blockquote>`;continue;}
-    if(!l.trim()){flush();continue;} para.push(l.trim());
+  const libs = window.SillyTavern?.libs;
+  const Showdown = libs?.showdown;
+  const DOMPurify = libs?.DOMPurify;
+
+  if (!Showdown?.Converter) {
+    console.warn('[ST Reference Desk] SillyTavern Showdown unavailable; rendering Markdown as plain text.');
+    return plainToHtml(md);
   }
-  flush(); if(fence) out+=`<pre><code>${esc(code.join('\n'))}</code></pre>`;
-  return out;
+
+  const converter = new Showdown.Converter({
+    tables: true,
+    strikethrough: true,
+    tasklists: true,
+    simplifiedAutoLink: true,
+    openLinksInNewWindow: true,
+    ghCodeBlocks: true,
+    emoji: false,
+  });
+  let html = converter.makeHtml(String(md ?? ''));
+  if (DOMPurify?.sanitize) html = DOMPurify.sanitize(html);
+  return html;
 }
 function plainToHtml(text){ return `<pre class="rd-plain">${esc(text)}</pre>`; }
 function csvToHtml(text){
@@ -58,13 +46,30 @@ function csvToHtml(text){
   if(!rows.length)return '';
   return `<div class="rd-table-wrap"><table><thead><tr>${rows[0].map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
+function sanitizeHtml(html){
+  const purifier = window.SillyTavern?.libs?.DOMPurify;
+  if (purifier?.sanitize) return purifier.sanitize(html);
+  const p=new DOMParser().parseFromString(html,'text/html');
+  p.querySelectorAll('script,iframe,object,embed,form').forEach(x=>x.remove());
+  p.querySelectorAll('*').forEach(el=>[...el.attributes].forEach(a=>{if(/^on/i.test(a.name)||/javascript:/i.test(a.value))el.removeAttribute(a.name);}));
+  return p.body.innerHTML;
+}
 function renderDoc(doc){
   const ext=doc.name.split('.').pop().toLowerCase();
   if(['md','markdown'].includes(ext)) return markdown(doc.content);
   if(ext==='json'){ try{return `<pre><code>${esc(JSON.stringify(JSON.parse(doc.content),null,2))}</code></pre>`;}catch{return plainToHtml(doc.content);} }
   if(ext==='csv') return csvToHtml(doc.content);
-  if(['html','htm'].includes(ext)){ const p=new DOMParser().parseFromString(doc.content,'text/html'); p.querySelectorAll('script,iframe,object,embed,form').forEach(x=>x.remove()); p.querySelectorAll('*').forEach(el=>[...el.attributes].forEach(a=>{if(/^on/i.test(a.name)||/javascript:/i.test(a.value))el.removeAttribute(a.name);})); return p.body.innerHTML; }
+  if(['html','htm'].includes(ext)) return sanitizeHtml(doc.content);
   return plainToHtml(doc.content);
+}
+function normalizeRenderedHeadings(root){
+  const seen = new Map();
+  root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+    const base = idFor(h.textContent || 'section');
+    const count = seen.get(base) || 0;
+    seen.set(base, count + 1);
+    h.id = count ? `${base}-${count + 1}` : base;
+  });
 }
 function extractKeywords(content){
   const found=[]; const re=/\*\*(?:Trigger keywords?|Keywords?)\s*:\*\*\s*([^\n]+)/gi; let m;
@@ -82,7 +87,7 @@ function render(){
   $('#rd-empty').toggle(!d); $('#rd-workspace').toggle(!!d); if(!d)return;
   $('#rd-toc').html(headings(d.content).map(h=>`<button style="--depth:${h.level}" data-jump="${h.id}">${esc(h.text)}</button>`).join('') || '<small>No Markdown headings detected.</small>');
   $('#rd-keywords').html(extractKeywords(d.content).map(k=>`<button class="rd-key" data-key="${esc(k)}" title="Tap to copy; use + to insert">${esc(k)} <span data-insert="${esc(k)}">＋</span></button>`).join(''));
-  const viewer=document.querySelector('#rd-viewer'); viewer.innerHTML=renderDoc(d); highlight(viewer,searchTerm);
+  const viewer=document.querySelector('#rd-viewer'); viewer.innerHTML=renderDoc(d); normalizeRenderedHeadings(viewer); highlight(viewer,searchTerm);
   if(searchTerm){ const first=viewer.querySelector('.rd-hit'); first?.scrollIntoView({block:'center'}); }
 }
 function insertIntoChat(text){
@@ -123,11 +128,11 @@ function settingsPanel(){
 
 function updateSettingsStatus(){
   const el=document.getElementById('rd-settings-status');
-  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.1`;
+  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.2`;
 }
 
 function shell(){
-  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.1</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
+  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.2</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
   $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
   $('#rd-nav-toggle').on('click',()=>$('#rd-sidebar').addClass('open'));
   $('#rd-nav-close').on('click',()=>$('#rd-sidebar').removeClass('open'));
@@ -145,7 +150,7 @@ function shell(){
 export async function init(){
   if(initialized) return;
   initialized=true;
-  console.log('[ST Reference Desk] init v0.2.1');
+  console.log('[ST Reference Desk] init v0.2.2');
 
   try {
     if (!document.getElementById('rd-overlay')) shell();
@@ -160,7 +165,7 @@ export async function init(){
   try {
     await loadDocs();
     render();
-    console.log('[ST Reference Desk] ready v0.2.1');
+    console.log('[ST Reference Desk] ready v0.2.2');
   } catch (error) {
     console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
     docs=[];

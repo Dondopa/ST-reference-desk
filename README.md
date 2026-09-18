@@ -2,7 +2,13 @@
 
 A lightweight SillyTavern reference-manual drawer for Markdown and other text-based files.
 
-## v0.2.1
+## v0.2.2
+
+- Markdown rendering now uses SillyTavern's bundled Showdown renderer instead of Reference Desk's home-grown parser.
+- Rendered Markdown is sanitized with SillyTavern's bundled DOMPurify.
+- Fixes multiline bold/emphasis and improves tables, nested lists, links, fenced code blocks, task lists, and strikethrough.
+- TOC anchors are normalized after rendering so Reference Desk navigation remains reliable.
+
 
 - Persistent manual library using SillyTavern's browser-side localforage storage.
 - `.md` / `.markdown`, `.txt`, `.html`, `.json`, `.yaml` / `.yml`, and `.csv` imports.
