@@ -1,0 +1,12 @@
+{
+  "display_name": "ST Reference Desk",
+  "loading_order": 50,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Dondopa + OpenAI",
+  "version": "0.1.0",
+  "homePage": "",
+  "hooks": { "activate": "init" }
+}
