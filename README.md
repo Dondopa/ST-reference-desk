@@ -2,7 +2,7 @@
 
 A lightweight SillyTavern reference-manual drawer for Markdown and other text-based files.
 
-## v0.2.3
+## v0.2.4
 
 - Markdown rendering now uses SillyTavern's bundled Showdown renderer instead of Reference Desk's home-grown parser.
 - Rendered Markdown is sanitized with SillyTavern's bundled DOMPurify.
@@ -65,9 +65,16 @@ The floating launcher is created before persistent storage is loaded, activation
 - Desktop keeps the side-index layout.
 
 
-### v0.2.3
+### v0.2.4
 - Fixes first-heading clipping when a manual is opened/switched.
 - Adds section filtering inside Contents & Keywords.
 - Shows section and trigger-keyword counts.
 - Adds a one-tap “Top of manual” action.
 - Keeps mobile navigation collapsible after jumping to a section.
+
+
+## v0.2.4
+- Locks the Reference Desk application shell while open.
+- Only the manual viewport scrolls; the header, close button, tabs, search, and navigation remain reachable.
+- TOC jumps now scroll `#rd-viewer` directly instead of using page-level `scrollIntoView()`.
+- Prevents Android/browser overscroll from dragging the surrounding SillyTavern page.

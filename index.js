@@ -135,37 +135,52 @@ function settingsPanel(){
         </div>
       </div>
     </div>`);
-  $('#rd-settings-open').off('click.rd').on('click.rd',()=>$('#rd-overlay').addClass('open'));
+  $('#rd-settings-open').off('click.rd').on('click.rd',()=>setDeskOpen(true));
   $('#rd-settings-import').off('click.rd').on('click.rd',()=>$('#rd-file').trigger('click'));
 }
 
 function updateSettingsStatus(){
   const el=document.getElementById('rd-settings-status');
-  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.3`;
+  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.4`;
+}
+
+function scrollViewerToHeading(id){
+  if(!id) return;
+  const viewer=document.getElementById('rd-viewer');
+  const target=document.getElementById(id);
+  if(!viewer||!target) return;
+  const top=target.getBoundingClientRect().top-viewer.getBoundingClientRect().top+viewer.scrollTop-8;
+  viewer.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+}
+
+function setDeskOpen(open){
+  document.getElementById('rd-overlay')?.classList.toggle('open',!!open);
+  document.documentElement.classList.toggle('rd-lock',!!open);
+  document.body.classList.toggle('rd-lock',!!open);
 }
 
 function shell(){
-  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.3</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><small id="rd-index-stats"></small><input id="rd-toc-filter" type="search" placeholder="Filter sections…" autocomplete="off"><h4>Contents</h4><div id="rd-toc"></div><button id="rd-to-top" type="button">↑ Top of manual</button><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
-  $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
+  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.4</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><small id="rd-index-stats"></small><input id="rd-toc-filter" type="search" placeholder="Filter sections…" autocomplete="off"><h4>Contents</h4><div id="rd-toc"></div><button id="rd-to-top" type="button">↑ Top of manual</button><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
+  $('#rd-close').on('click',()=>setDeskOpen(false));
   $('#rd-nav-toggle').on('click',()=>$('#rd-sidebar').addClass('open'));
   $('#rd-nav-close').on('click',()=>$('#rd-sidebar').removeClass('open'));
   $('#rd-to-top').on('click',()=>{const v=document.getElementById('rd-viewer'); if(v)v.scrollTo({top:0,behavior:'smooth'}); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
   let tocTimer; $('#rd-toc-filter').on('input',e=>{clearTimeout(tocTimer);tocTimer=setTimeout(()=>{tocFilter=e.target.value;render();},80);});
-  $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')$('#rd-overlay').removeClass('open');});
+  $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')setDeskOpen(false);});
   $('#rd-add,#rd-empty-open').on('click',()=>$('#rd-file').trigger('click'));
   $('#rd-file').on('change',async e=>{await importFiles([...e.target.files]);e.target.value='';});
   $('#rd-tabs').on('click',async e=>{const rem=e.target.dataset.remove;if(rem){e.stopPropagation();docs=docs.filter(d=>d.id!==rem);if(activeId===rem)activeId=docs[0]?.id||null;await saveDocs();render();return;}const b=e.target.closest('[data-id]');if(b){activeId=b.dataset.id;searchTerm='';tocFilter='';lastRenderedId=null;$('#rd-search').val('');$('#rd-toc-filter').val('');render();}});
-  $('#rd-toc').on('click',e=>{const b=e.target.closest('[data-jump]');document.getElementById(b?.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'}); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
+  $('#rd-toc').on('click',e=>{const b=e.target.closest('[data-jump]');scrollViewerToHeading(b?.dataset.jump); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
   $('#rd-keywords').on('click',async e=>{const ins=e.target.dataset.insert;if(ins){e.stopPropagation();insertIntoChat(ins);return;}const b=e.target.closest('[data-key]');if(b){await navigator.clipboard.writeText(b.dataset.key);toast(`Copied: ${b.dataset.key}`,'success');}});
   let timer; $('#rd-search').on('input',e=>{clearTimeout(timer);timer=setTimeout(()=>{searchTerm=e.target.value.trim();render();},120);});
   $('#rd-clear').on('click',()=>{searchTerm='';$('#rd-search').val('');render();});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#rd-overlay').removeClass('open');});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')setDeskOpen(false);});
 }
 
 export async function init(){
   if(initialized) return;
   initialized=true;
-  console.log('[ST Reference Desk] init v0.2.3');
+  console.log('[ST Reference Desk] init v0.2.4');
 
   try {
     if (!document.getElementById('rd-overlay')) shell();
@@ -180,7 +195,7 @@ export async function init(){
   try {
     await loadDocs();
     render();
-    console.log('[ST Reference Desk] ready v0.2.3');
+    console.log('[ST Reference Desk] ready v0.2.4');
   } catch (error) {
     console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
     docs=[];

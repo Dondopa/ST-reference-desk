@@ -57,3 +57,18 @@
   #rd-viewer{scroll-padding-top:8px;}
   #rd-viewer>:first-child{margin-top:0!important;}
 }
+
+/* v0.2.4: lock the app shell; only the manual viewport may scroll */
+html.rd-lock,body.rd-lock{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none;}
+#rd-overlay.open{overflow:hidden!important;overscroll-behavior:none!important;}
+#rd-panel{min-height:0!important;max-height:100dvh!important;overflow:hidden!important;}
+#rd-panel>header,#rd-tabs,.rd-tools{flex-shrink:0!important;}
+#rd-workspace{overflow:hidden!important;min-height:0!important;}
+#rd-viewer{min-height:0!important;max-height:100%;overflow-y:auto!important;overflow-x:hidden;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+@media(max-width:700px){
+  #rd-panel{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+  #rd-workspace{overflow:hidden!important;}
+  #rd-nav-toggle{flex-shrink:0!important;}
+  #rd-viewer{flex:1 1 0!important;height:0!important;min-height:0!important;overflow-y:auto!important;touch-action:pan-y!important;}
+  #rd-sidebar{touch-action:pan-y!important;overflow-y:auto!important;overscroll-behavior:contain!important;}
+}
