@@ -42,3 +42,18 @@
   #rd-viewer table{min-width:520px;}
   #rd-empty{background:rgb(24,24,24)!important;}
 }
+
+
+/* v0.2.3: navigation polish + first-heading clipping fix */
+#rd-index-stats{display:block;margin:6px 5px 8px;opacity:.65;}
+#rd-toc-filter{box-sizing:border-box;width:100%;margin:0 0 7px;padding:7px 8px;background:#0003;border:1px solid var(--SmartThemeBorderColor,#666);border-radius:7px;}
+#rd-to-top{width:100%;margin:7px 0 3px;text-align:left;}
+#rd-viewer>:first-child{margin-top:0!important;}
+#rd-viewer h1:first-child{padding-top:2px;}
+#rd-toc button{line-height:1.25;border-radius:5px;}
+#rd-toc button:active{background:#fff2;}
+@media(max-width:700px){
+  #rd-nav-toggle{position:relative;z-index:3;margin-bottom:0;}
+  #rd-viewer{scroll-padding-top:8px;}
+  #rd-viewer>:first-child{margin-top:0!important;}
+}

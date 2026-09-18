@@ -4,6 +4,8 @@ let initialized = false;
 let docs = [];
 let activeId = null;
 let searchTerm = '';
+let tocFilter = '';
+let lastRenderedId = null;
 
 function esc(s='') { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function idFor(s='') { return 'rd-' + s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70); }
@@ -79,16 +81,27 @@ function extractKeywords(content){
 function headings(content){ return content.split(/\r?\n/).map(l=>l.match(/^(#{1,4})\s+(.+)$/)).filter(Boolean).map(m=>({level:m[1].length,text:m[2].replace(/[*_`]/g,''),id:idFor(m[2])})); }
 function highlight(root, term){ if(!term)return; const walk=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); const nodes=[]; while(walk.nextNode())nodes.push(walk.currentNode); const re=new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'); nodes.forEach(n=>{if(!re.test(n.nodeValue))return;re.lastIndex=0;const span=document.createElement('span');span.innerHTML=esc(n.nodeValue).replace(re,m=>`<mark class="rd-hit">${m}</mark>`);n.parentNode.replaceChild(span,n);}); }
 function active(){return docs.find(d=>d.id===activeId);}
+function filteredHeadings(content){
+  const all=headings(content);
+  const q=tocFilter.trim().toLowerCase();
+  return q ? all.filter(h=>h.text.toLowerCase().includes(q)) : all;
+}
 
 function render(){
   updateSettingsStatus();
   const d=active();
   $('#rd-tabs').html(docs.map(x=>`<button class="rd-tab ${x.id===activeId?'active':''}" data-id="${x.id}">${esc(x.name.replace(/\.[^.]+$/,''))}<span data-remove="${x.id}">×</span></button>`).join(''));
   $('#rd-empty').toggle(!d); $('#rd-workspace').toggle(!!d); if(!d)return;
-  $('#rd-toc').html(headings(d.content).map(h=>`<button style="--depth:${h.level}" data-jump="${h.id}">${esc(h.text)}</button>`).join('') || '<small>No Markdown headings detected.</small>');
-  $('#rd-keywords').html(extractKeywords(d.content).map(k=>`<button class="rd-key" data-key="${esc(k)}" title="Tap to copy; use + to insert">${esc(k)} <span data-insert="${esc(k)}">＋</span></button>`).join(''));
-  const viewer=document.querySelector('#rd-viewer'); viewer.innerHTML=renderDoc(d); normalizeRenderedHeadings(viewer); highlight(viewer,searchTerm);
+  const allHeads=headings(d.content), shownHeads=filteredHeadings(d.content), keys=extractKeywords(d.content);
+  $('#rd-index-stats').text(`${allHeads.length} sections · ${keys.length} trigger keywords`);
+  $('#rd-toc').html(shownHeads.map(h=>`<button style="--depth:${h.level}" data-jump="${h.id}">${esc(h.text)}</button>`).join('') || `<small>${tocFilter ? 'No matching sections.' : 'No Markdown headings detected.'}</small>`);
+  $('#rd-keywords').html(keys.map(k=>`<button class="rd-key" data-key="${esc(k)}" title="Tap to copy; use + to insert">${esc(k)} <span data-insert="${esc(k)}">＋</span></button>`).join('') || '<small>No trigger-keyword lines detected.</small>');
+  const viewer=document.querySelector('#rd-viewer');
+  const changedDoc = lastRenderedId !== d.id;
+  viewer.innerHTML=renderDoc(d); normalizeRenderedHeadings(viewer); highlight(viewer,searchTerm);
   if(searchTerm){ const first=viewer.querySelector('.rd-hit'); first?.scrollIntoView({block:'center'}); }
+  else if(changedDoc){ viewer.scrollTop=0; }
+  lastRenderedId=d.id;
 }
 function insertIntoChat(text){
   const ta=document.querySelector('#send_textarea'); if(!ta){toast('Could not find SillyTavern message box.','warning');return;}
@@ -128,18 +141,20 @@ function settingsPanel(){
 
 function updateSettingsStatus(){
   const el=document.getElementById('rd-settings-status');
-  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.2`;
+  if(el) el.textContent=`${docs.length} manual${docs.length===1?'':'s'} loaded · v0.2.3`;
 }
 
 function shell(){
-  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.2</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><h4>Contents</h4><div id="rd-toc"></div><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
+  $('body').append(`<div id="rd-overlay"><section id="rd-panel"><header><strong>📖 Reference Desk <small>v0.2.3</small></strong><div><button id="rd-add">＋ Open</button><button id="rd-close">×</button></div></header><div id="rd-tabs"></div><div class="rd-tools"><input id="rd-search" placeholder="Search this manual…"><button id="rd-clear">Clear</button></div><div id="rd-empty"><h3>Reference Desk</h3><p>Open Markdown or another supported reference file. Your manuals are stored locally and restored next session.</p><button id="rd-empty-open">Open a manual</button></div><div id="rd-workspace"><button id="rd-nav-toggle" type="button">☰ Contents & Keywords</button><aside id="rd-sidebar"><div class="rd-sidebar-head"><strong>Reference Index</strong><button id="rd-nav-close" type="button">×</button></div><small id="rd-index-stats"></small><input id="rd-toc-filter" type="search" placeholder="Filter sections…" autocomplete="off"><h4>Contents</h4><div id="rd-toc"></div><button id="rd-to-top" type="button">↑ Top of manual</button><h4>Trigger Keywords</h4><div id="rd-keywords"></div></aside><main id="rd-viewer"></main></div><input id="rd-file" type="file" multiple accept=".md,.markdown,.txt,.html,.htm,.json,.yaml,.yml,.csv" hidden></section></div>`);
   $('#rd-close').on('click',()=>$('#rd-overlay').removeClass('open'));
   $('#rd-nav-toggle').on('click',()=>$('#rd-sidebar').addClass('open'));
   $('#rd-nav-close').on('click',()=>$('#rd-sidebar').removeClass('open'));
+  $('#rd-to-top').on('click',()=>{const v=document.getElementById('rd-viewer'); if(v)v.scrollTo({top:0,behavior:'smooth'}); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
+  let tocTimer; $('#rd-toc-filter').on('input',e=>{clearTimeout(tocTimer);tocTimer=setTimeout(()=>{tocFilter=e.target.value;render();},80);});
   $('#rd-overlay').on('click',e=>{if(e.target.id==='rd-overlay')$('#rd-overlay').removeClass('open');});
   $('#rd-add,#rd-empty-open').on('click',()=>$('#rd-file').trigger('click'));
   $('#rd-file').on('change',async e=>{await importFiles([...e.target.files]);e.target.value='';});
-  $('#rd-tabs').on('click',async e=>{const rem=e.target.dataset.remove;if(rem){e.stopPropagation();docs=docs.filter(d=>d.id!==rem);if(activeId===rem)activeId=docs[0]?.id||null;await saveDocs();render();return;}const b=e.target.closest('[data-id]');if(b){activeId=b.dataset.id;searchTerm='';$('#rd-search').val('');render();}});
+  $('#rd-tabs').on('click',async e=>{const rem=e.target.dataset.remove;if(rem){e.stopPropagation();docs=docs.filter(d=>d.id!==rem);if(activeId===rem)activeId=docs[0]?.id||null;await saveDocs();render();return;}const b=e.target.closest('[data-id]');if(b){activeId=b.dataset.id;searchTerm='';tocFilter='';lastRenderedId=null;$('#rd-search').val('');$('#rd-toc-filter').val('');render();}});
   $('#rd-toc').on('click',e=>{const b=e.target.closest('[data-jump]');document.getElementById(b?.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'}); if(window.matchMedia('(max-width:700px)').matches) $('#rd-sidebar').removeClass('open');});
   $('#rd-keywords').on('click',async e=>{const ins=e.target.dataset.insert;if(ins){e.stopPropagation();insertIntoChat(ins);return;}const b=e.target.closest('[data-key]');if(b){await navigator.clipboard.writeText(b.dataset.key);toast(`Copied: ${b.dataset.key}`,'success');}});
   let timer; $('#rd-search').on('input',e=>{clearTimeout(timer);timer=setTimeout(()=>{searchTerm=e.target.value.trim();render();},120);});
@@ -150,7 +165,7 @@ function shell(){
 export async function init(){
   if(initialized) return;
   initialized=true;
-  console.log('[ST Reference Desk] init v0.2.2');
+  console.log('[ST Reference Desk] init v0.2.3');
 
   try {
     if (!document.getElementById('rd-overlay')) shell();
@@ -165,7 +180,7 @@ export async function init(){
   try {
     await loadDocs();
     render();
-    console.log('[ST Reference Desk] ready v0.2.2');
+    console.log('[ST Reference Desk] ready v0.2.3');
   } catch (error) {
     console.error('[ST Reference Desk] storage failed; continuing without restored manuals', error);
     docs=[];

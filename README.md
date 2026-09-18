@@ -2,7 +2,7 @@
 
 A lightweight SillyTavern reference-manual drawer for Markdown and other text-based files.
 
-## v0.2.2
+## v0.2.3
 
 - Markdown rendering now uses SillyTavern's bundled Showdown renderer instead of Reference Desk's home-grown parser.
 - Rendered Markdown is sanitized with SillyTavern's bundled DOMPurify.
@@ -63,3 +63,11 @@ The floating launcher is created before persistent storage is loaded, activation
 - Added collapsible Contents & Keywords drawer on phones.
 - Reader/search/header use isolated scrolling and mobile-safe layout.
 - Desktop keeps the side-index layout.
+
+
+### v0.2.3
+- Fixes first-heading clipping when a manual is opened/switched.
+- Adds section filtering inside Contents & Keywords.
+- Shows section and trigger-keyword counts.
+- Adds a one-tap “Top of manual” action.
+- Keeps mobile navigation collapsible after jumping to a section.
